@@ -1,0 +1,35 @@
+stages:
+  prepare_data:
+    cmd: python3 -m src.data
+    deps:
+      - data/
+      - src/utils.py
+      - params.yaml
+    outs:
+      - data_split/
+
+  train:
+    cmd: python3 -m src.training
+    deps:
+      - src/training.py
+      - src/data.py
+      - data_split/
+      - params.yaml
+    outs:
+      - models/fer_model.pth
+    params:
+      - train.epochs
+      - train.learning_rate
+      - data.batch_size
+
+  evaluate:
+    cmd: python3 -m src.evaluate
+    deps:
+      - src/evaluate.py
+      - src/data.py
+      - models/fer_model.pth
+      - params.yaml
+    metrics:
+      - eval/metrics.json
+    params:
+      - evaluate.batch_size

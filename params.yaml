@@ -1,0 +1,10 @@
+data:
+  batch_size: 32
+  test_ratio: 0.2
+
+train:
+  epochs: 50
+  learning_rate: 0.0005
+
+evaluate:
+  batch_size: 32
