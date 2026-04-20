@@ -1,0 +1,21 @@
+.
+├── data
+│   ├── angry
+│   ├── disgust
+│   ├── fear
+│   ├── happy
+│   ├── neutral
+│   ├── sad
+│   └── surprise
+├── data_split
+├── dvc.yaml
+├── params.yaml
+├── src
+│   ├── data.py
+│   ├── evaluate.py
+│   ├── __init__.py
+│   ├── training.py
+│   └── utils.py
+└── structure.txt
+
+11 directories, 8 files

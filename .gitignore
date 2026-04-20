@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.pyc
+.env
+
+# data
+data/
+data_split/
+models/
+eval/
+
+# mlflow
+mlruns/
+
+# system
+.DS_Store
