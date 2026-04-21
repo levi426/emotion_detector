@@ -42,7 +42,7 @@ def load_data(batch_size=None, test_ratio=None):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    return train_loader, test_loader
+    return train_loader, test_loader, train_dataset.classes
 
 if __name__ == "__main__":
     load_data()

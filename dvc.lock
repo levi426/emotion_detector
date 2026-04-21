@@ -1,0 +1,81 @@
+schema: '2.0'
+stages:
+  prepare_data:
+    cmd: python3 -m src.data
+    deps:
+    - path: data/
+      hash: md5
+      md5: 96b5b9e2ce60fe174f83624ae8855c8e.dir
+      size: 56510189
+      nfiles: 35887
+    - path: params.yaml
+      hash: md5
+      md5: 268e2db3e415b049c5a22ff28f30cbc6
+      size: 114
+    - path: src/utils.py
+      hash: md5
+      md5: bdc1a23680bdbc25a0792fe69e561edd
+      size: 867
+    outs:
+    - path: data_split/
+      hash: md5
+      md5: ad5a289d81e095a048c05a8145a09d5a.dir
+      size: 56510189
+      nfiles: 35887
+  train:
+    cmd: python3 -m src.training
+    deps:
+    - path: data_split/
+      hash: md5
+      md5: ad5a289d81e095a048c05a8145a09d5a.dir
+      size: 56510189
+      nfiles: 35887
+    - path: params.yaml
+      hash: md5
+      md5: 268e2db3e415b049c5a22ff28f30cbc6
+      size: 114
+    - path: src/data.py
+      hash: md5
+      md5: 66a6a7476e37eeb9b4659dc3a4453cf6
+      size: 1901
+    - path: src/training.py
+      hash: md5
+      md5: b8ed4bf0140edb0cbc09e2a6152fe6b9
+      size: 3867
+    params:
+      params.yaml:
+        data.batch_size: 32
+        train.epochs: 50
+        train.learning_rate: 0.0005
+    outs:
+    - path: models/fer_model.pth
+      hash: md5
+      md5: 49d353e046a9f7a5c1bc22389f457b04
+      size: 44798155
+  evaluate:
+    cmd: python3 -m src.evaluate
+    deps:
+    - path: models/fer_model.pth
+      hash: md5
+      md5: 49d353e046a9f7a5c1bc22389f457b04
+      size: 44798155
+    - path: params.yaml
+      hash: md5
+      md5: 268e2db3e415b049c5a22ff28f30cbc6
+      size: 114
+    - path: src/data.py
+      hash: md5
+      md5: 66a6a7476e37eeb9b4659dc3a4453cf6
+      size: 1901
+    - path: src/evaluate.py
+      hash: md5
+      md5: bbabc42cb09b5bca6858d18e34aa0d8c
+      size: 1523
+    params:
+      params.yaml:
+        evaluate.batch_size: 32
+    outs:
+    - path: eval/metrics.json
+      hash: md5
+      md5: 22a6953181d0f3dfafbd707f595a52e5
+      size: 1802

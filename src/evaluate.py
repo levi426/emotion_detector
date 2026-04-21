@@ -14,7 +14,7 @@ with open("params.yaml") as f:
 
 batch_size = params["evaluate"]["batch_size"]
 
-_, test_loader = load_data(batch_size=batch_size)
+_, test_loader, classes = load_data(batch_size=batch_size)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = models.resnet18(weights=ResNet18_Weights.DEFAULT)

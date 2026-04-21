@@ -9,79 +9,124 @@ from src.data import load_data
 import mlflow
 import mlflow.pytorch
 
-with open("params.yaml") as f:
-    params = yaml.safe_load(f)
 
-epochs = params["train"]["epochs"]
-learning_rate = params["train"]["learning_rate"]
-batch_size = params["data"]["batch_size"]
+def main():
+    # -----------------------------
+    # Load parameters
+    # -----------------------------
+    with open("params.yaml") as f:
+        params = yaml.safe_load(f)
 
-mlflow.set_experiment("emotion-classification")
+    epochs = params["train"]["epochs"]
+    learning_rate = params["train"]["learning_rate"]
+    batch_size = params["data"]["batch_size"]
 
-train_loader, test_loader = load_data(batch_size=batch_size)
+    # -----------------------------
+    # MLflow setup
+    # -----------------------------
+    mlflow.set_tracking_uri("http://127.0.0.1:5000")
+    mlflow.set_experiment("emotion-classification")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # -----------------------------
+    # Load data
+    # -----------------------------
+    train_loader, test_loader, classes = load_data(batch_size=batch_size)
 
-model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+    # -----------------------------
+    # Device
+    # -----------------------------
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-for name, param in model.named_parameters():
-    if "layer3" not in name and "layer4" not in name and "fc" not in name:
-        param.requires_grad = False
+    # -----------------------------
+    # Model (ResNet18)
+    # -----------------------------
+    model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
 
-model.fc = nn.Linear(model.fc.in_features, 7)
-model = model.to(device)
+    # Freeze layers (transfer learning)
+    for name, param in model.named_parameters():
+        if "layer3" not in name and "layer4" not in name and "fc" not in name:
+            param.requires_grad = False
 
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(
-    filter(lambda p: p.requires_grad, model.parameters()),
-    lr=learning_rate
-)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+    # Replace final layer dynamically
+    model.fc = nn.Linear(model.fc.in_features, len(classes))
+    model = model.to(device)
 
-best_loss = float("inf")
-patience = 5
-counter = 0
+    # -----------------------------
+    # Loss + Optimizer
+    # -----------------------------
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=learning_rate
+    )
 
-with mlflow.start_run():
-    mlflow.log_params({
-        "epochs": epochs,
-        "learning_rate": learning_rate,
-        "batch_size": batch_size
-    })
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
-    for epoch in range(epochs):
-        model.train()
-        running_loss = 0.0
+    # -----------------------------
+    # Training
+    # -----------------------------
+    best_loss = float("inf")
+    patience = 5
+    counter = 0
 
-        for images, labels in train_loader:
-            images, labels = images.to(device), labels.to(device)
+    with mlflow.start_run():
+        mlflow.log_params({
+            "epochs": epochs,
+            "learning_rate": learning_rate,
+            "batch_size": batch_size
+        })
 
-            optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+        for epoch in range(epochs):
+            model.train()
+            running_loss = 0.0
 
-            running_loss += loss.item()
+            for images, labels in train_loader:
+                images, labels = images.to(device), labels.to(device)
 
-        running_loss /= len(train_loader)
-        print(f"Epoch {epoch+1}, Loss: {running_loss:.4f}")
-        mlflow.log_metric("train_loss", running_loss, step=epoch)
+                optimizer.zero_grad()
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
 
-        scheduler.step()
+                running_loss += loss.item()
+
+            running_loss /= len(train_loader)
+            print(f"Epoch {epoch+1}, Loss: {running_loss:.4f}")
+
+            mlflow.log_metric("train_loss", running_loss, step=epoch)
+
+            scheduler.step()
+
+            # -----------------------------
+            # Save best model locally
+            # -----------------------------
+            if running_loss < best_loss:
+                best_loss = running_loss
+                counter = 0
+
+                os.makedirs("models", exist_ok=True)
+                torch.save(model.state_dict(), "models/fer_model.pth")
+
+                print("Best model saved.")
+            else:
+                counter += 1
+                if counter >= patience:
+                    print("Early stopping.")
+                    break
+
+        # -----------------------------
+        # Log model to MLflow Registry
+        # -----------------------------
+        mlflow.pytorch.log_model(
+            model,
+            artifact_path="model",
+            registered_model_name="emotion-detector"
+        )
+
+        # Optional: log local model as artifact
+        mlflow.log_artifact("models/fer_model.pth")
 
 
-        if running_loss < best_loss:
-            best_loss = running_loss
-            counter = 0
-            os.makedirs("models", exist_ok=True)
-            torch.save(model.state_dict(), "models/fer_model.pth")
-            print("Best model saved.")
-        else:
-            counter += 1
-            if counter >= patience:
-                print("Early stopping.")
-                break
-
-    mlflow.pytorch.log_model(model, "model")
-    mlflow.log_artifact("models/fer_model.pth")
+if __name__ == "__main__":
+    main()
